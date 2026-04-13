@@ -6,6 +6,7 @@ library(shiny)
 library(DT)
 library(dplyr)
 library(ggplot2)
+library(plotly)
 
 rm(list = ls())
 
@@ -51,7 +52,7 @@ ui <- fluidPage(
              ),
              
              fluidRow(
-               column(12, plotOutput("rainplot"))
+               column(12, plotlyOutput("rainplot"))
              )
     ),
     
@@ -82,37 +83,42 @@ server <- function(input, output) {
   # Plot
   #####################################
   
-  output$rainplot <- renderPlot({
+  output$rainplot <- renderPlotly({
     req(rv$data)
     
     validate(
       need(nrow(rv$data) > 0, "No data available for selected years")
     )
     
-    # base plot
     p <- ggplot(rv$data,
-                aes(x = month, y = inches, group = year)) +
+                aes(x = month, y = inches, group = year,
+                    text = paste("Year:", year,
+                                 "<br>Rain:", inches, "inches"))) +
       geom_line(color = "gray70", alpha = 0.6)
     
-    # highlight selected year
+    # Highlight selected year
     highlight_data <- rv$data %>%
       filter(year == input$highlight_year)
     
     p <- p +
       geom_line(data = highlight_data,
                 color = "blue", size = 1.2)
-    # optional points
+    
+    # Optional points
     if (input$show_points) {
-      p <- p + geom_point(size = 1.5, alpha = 0.7)
+      p <- p + geom_point(aes(text = paste("Year:", year,
+                                           "<br>Rain:", inches)),
+                          size = 2)
     }
     
-    p +
+    p <- p +
       labs(
         title = "Monthly Rainfall in Sewanee",
         subtitle = paste("Highlighted year:", input$highlight_year),
         x = "Month",
         y = "Rainfall (inches)"
-      ) 
+      )
+    ggplotly(p, tooltip = "text")
   })
   
   #####################################
